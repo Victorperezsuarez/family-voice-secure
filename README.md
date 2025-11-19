@@ -34,3 +34,12 @@ VITE_SUPABASE_ANON_KEY=your_key
 ```
 macOS/Linux: git remote -v
 Windows (CMD/PowerShell): git remote -v
+`.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+ ```env
+ VITE_SUPABASE_ANON_KEY=your_actual_key_here
+   ```
+sb_secret_6ztqr7hlC2BB5yVQQmZojw_UNNfNUGW
+`npm run dev`
