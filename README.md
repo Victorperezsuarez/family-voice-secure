@@ -32,3 +32,5 @@ VITE_SUPABASE_URL=your_url
 VITE_SUPABASE_ANON_KEY=your_key
 ```
 ```
+macOS/Linux: git remote -v
+Windows (CMD/PowerShell): git remote -v
