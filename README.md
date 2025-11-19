@@ -42,4 +42,4 @@ Windows (CMD/PowerShell): git remote -v
  VITE_SUPABASE_ANON_KEY=your_actual_key_here
    ```
 sb_secret_6ztqr7hlC2BB5yVQQmZojw_UNNfNUGW
-`npm run dev`
+`npm run dev` 
