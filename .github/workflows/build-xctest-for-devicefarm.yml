@@ -1,0 +1,189 @@
+name: Build and Upload to AWS Device Farm
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Cada día a las 2 AM
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'ios/**'
+      - 'package.json'
+
+jobs:
+  build-and-upload:
+    name: Build iOS Test Packages & Upload to Device Farm
+    runs-on: macos-14
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build web assets
+        run: npm run build
+      
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
+      
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install
+      
+      - name: Build iOS app for testing
+        run: |
+          cd ios/App
+          xcodebuild build-for-testing \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Debug \
+            -derivedDataPath ./DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
+      
+      - name: Prepare .ipa file
+        run: |
+          # Crear carpeta Payload
+          mkdir -p Payload
+          
+          # Buscar el archivo .app
+          APP_PATH=$(find ios/App/DerivedData -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ No se encontró el archivo .app"
+            exit 1
+          fi
+          
+          echo "✅ App encontrada en: $APP_PATH"
+          cp -r "$APP_PATH" Payload/
+          
+          # Crear .ipa
+          zip -r app.ipa Payload
+          echo "✅ app.ipa creado: $(ls -lh app.ipa)"
+      
+      - name: Prepare XCTest bundle
+        run: |
+          # Buscar el bundle .xctest
+          XCTEST_PATH=$(find ios/App/DerivedData -name "*.xctest" -type d | head -1)
+          
+          if [ -z "$XCTEST_PATH" ]; then
+            echo "❌ No se encontró el bundle .xctest"
+            exit 1
+          fi
+          
+          echo "✅ XCTest bundle encontrado en: $XCTEST_PATH"
+          
+          # Crear el ZIP en el formato que espera Device Farm
+          mkdir -p test-bundle
+          cp -r "$XCTEST_PATH" test-bundle/
+          
+          cd test-bundle
+          zip -r ../xctest-bundle.zip *.xctest
+          cd ..
+          
+          echo "✅ xctest-bundle.zip creado: $(ls -lh xctest-bundle.zip)"
+          
+          # Verificar estructura
+          echo "📦 Estructura del bundle:"
+          unzip -l xctest-bundle.zip | head -10
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-west-2' }}
+      
+      - name: Upload to AWS Device Farm
+        run: |
+          # Configurar región por defecto si no está definida
+          AWS_REGION=${AWS_REGION:-us-west-2}
+          
+          # Crear o obtener proyecto existente
+          echo "🔍 Buscando proyecto existente 'FamilyVoiceSecure'..."
+          PROJECT_ARN=$(aws devicefarm list-projects --query "projects[?name=='FamilyVoiceSecure'].arn" --output text)
+          
+          if [ -z "$PROJECT_ARN" ]; then
+            echo "📦 Proyecto no encontrado, creando nuevo..."
+            PROJECT_ARN=$(aws devicefarm create-project --name "FamilyVoiceSecure" --query 'project.arn' --output text)
+          fi
+          
+          echo "✅ Usando proyecto: $PROJECT_ARN"
+          
+          # Subir .ipa
+          echo "📤 Subiendo app.ipa a Device Farm..."
+          IPA_UPLOAD=$(aws devicefarm create-upload \
+            --project-arn "$PROJECT_ARN" \
+            --name "family-voice-secure-$(date +%Y%m%d-%H%M).ipa" \
+            --type "IOS_APP" \
+            --query 'upload.[arn,url]' \
+            --output text)
+          
+          IPA_ARN=$(echo "$IPA_UPLOAD" | awk '{print $1}')
+          IPA_URL=$(echo "$IPA_UPLOAD" | awk '{print $2}')
+          
+          echo "   ARN: $IPA_ARN"
+          echo "   Subiendo archivo..."
+          curl -T app.ipa "$IPA_URL"
+          echo "✅ IPA subido correctamente"
+          
+          # Subir XCTest bundle
+          echo "📤 Subiendo xctest-bundle.zip a Device Farm..."
+          TEST_UPLOAD=$(aws devicefarm create-upload \
+            --project-arn "$PROJECT_ARN" \
+            --name "tests-$(date +%Y%m%d-%H%M).zip" \
+            --type "XCTEST_UI_TEST_PACKAGE" \
+            --query 'upload.[arn,url]' \
+            --output text)
+          
+          TEST_ARN=$(echo "$TEST_UPLOAD" | awk '{print $1}')
+          TEST_URL=$(echo "$TEST_UPLOAD" | awk '{print $2}')
+          
+          echo "   ARN: $TEST_ARN"
+          echo "   Subiendo archivo..."
+          curl -T xctest-bundle.zip "$TEST_URL"
+          echo "✅ XCTest bundle subido correctamente"
+          
+          # Mostrar resumen
+          echo ""
+          echo "🎉 ¡COMPLETADO EXITOSAMENTE!"
+          echo "================================"
+          echo "📱 IPA ARN: $IPA_ARN"
+          echo "🧪 Test ARN: $TEST_ARN"
+          echo "📊 Proyecto: $PROJECT_ARN"
+          echo "================================"
+          echo ""
+          echo "Para iniciar una prueba en Device Farm:"
+          echo "aws devicefarm schedule-run \\"
+          echo "  --project-arn \"$PROJECT_ARN\" \\"
+          echo "  --app-arn \"$IPA_ARN\" \\"
+          echo "  --test-package-arn \"$TEST_ARN\" \\"
+          echo "  --device-pool-arn \"arn:aws:devicefarm:us-west-2::devicepool:top-rated\""
+      
+      - name: Upload artifacts (backup local)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-packages-${{ github.sha }}
+          path: |
+            app.ipa
+            xctest-bundle.zip
+          retention-days: 7
+          if-no-files-found: warn
+      
+      - name: Send notification on failure
+        if: failure()
+        run: |
+          echo "❌ El workflow falló. Revisa los logs para más detalles."
+          # Aquí puedes agregar notificaciones a Slack, email, etc.
