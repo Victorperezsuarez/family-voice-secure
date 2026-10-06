@@ -62,12 +62,12 @@ export async function saveFamilyMember(member: any) {
   return data;
 }
 
-// Get all family members
-export async function getFamilyMembers(userId: string) {
+// Get all family members for a family
+export async function getFamilyMembers(familyId: string) {
   const { data, error } = await supabase
     .from('family_members')
     .select('*')
-    .eq('user_id', userId)
+    .eq('family_id', familyId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
