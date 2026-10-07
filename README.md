@@ -57,3 +57,4 @@ npm run dev
 - Supabase
 - Tailwind CSS + shadcn/ui
 - React Router + React Query
+<!-- Vercel integration test -->
