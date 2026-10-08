@@ -70,6 +70,7 @@ const App = () => (
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>
+    </AuthProvider>
 );
 
 export default App;
