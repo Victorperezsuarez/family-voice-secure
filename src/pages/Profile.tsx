@@ -13,7 +13,9 @@ export default function Profile() {
   toast.success("Profile Updated", {
     description: "Your profile has been successfully updated.",
   });
-};
+  };
+
+  return (
     <div className="container mx-auto py-8 px-4 max-w-2xl">
       <h1 className="text-4xl font-bold mb-8">Profile Settings</h1>
 
@@ -57,6 +59,6 @@ export default function Profile() {
           <Button variant="destructive" className="w-full">Delete Account</Button>
         </CardContent>
       </Card>
-    </div>
-  )
+        </div>
+  );
 }
