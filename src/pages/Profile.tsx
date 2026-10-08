@@ -3,19 +3,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner";
 
 export default function Profile() {
-  const { toast } = useToast()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
 
   const handleSave = () => {
-    toast({
-      title: "Profile Updated",
-      description: "Your profile has been successfully updated.",
-    })
-  }
+  toast.success("Profile Updated", {
+    description: "Your profile has been successfully updated.",
+  });
+  };
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-2xl">
@@ -61,6 +59,6 @@ export default function Profile() {
           <Button variant="destructive" className="w-full">Delete Account</Button>
         </CardContent>
       </Card>
-    </div>
-  )
+        </div>
+  );
 }
