@@ -44,18 +44,19 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/pricing" element={<Pricing />} />
-           <Route element={<ProtectedRoute />}>
-  <Route path="/dashboard" element={<Dashboard />} />
-</Route>
-            <Route path="/billing" element={<BillingPage />} />
 
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/audit-logs" element={<AuditLogsViewer />} />
-            <Route path="/admin/retention" element={<RetentionManagement />} />
-            <Route path="/admin/compliance" element={<ComplianceReporting />} />
-            <Route path="/vela-deployment" element={<VelaDeployment />} />
-            <Route path="/mobile-vela" element={<MobileVela />} />
+<Route element={<ProtectedRoute />}>
+  <Route path="/dashboard" element={<Dashboard />} />
+  <Route path="/billing" element={<BillingPage />} />
+  <Route path="/profile" element={<Profile />} />
+  <Route path="/admin" element={<AdminDashboard />} />
+  <Route path="/admin/audit-logs" element={<AuditLogsViewer />} />
+  <Route path="/admin/retention" element={<RetentionManagement />} />
+  <Route path="/admin/compliance" element={<ComplianceReporting />} />
+  <Route path="/vela-deployment" element={<VelaDeployment />} />
+  <Route path="/mobile-vela" element={<MobileVela />} />
+</Route>
+
 
 
 
