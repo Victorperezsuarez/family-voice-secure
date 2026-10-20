@@ -4,7 +4,6 @@ export type VelaFamilyRole = 'admin' | 'contributor' | 'view-only';
 
 /** Family membership is created by the database trigger, not the client. */
 export async function createVelaFamily(name: string) {
-  if (!familyName) throw new Error('Family name is required');
   const { data: identity, error: identityError } =
   await supabase.auth.getUser();
 
