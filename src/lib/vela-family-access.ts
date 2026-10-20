@@ -3,7 +3,18 @@ import { supabase } from '@/lib/supabase-client';
 export type VelaFamilyRole = 'admin' | 'contributor' | 'view-only';
 
 /** Family membership is created by the database trigger, not the client. */
-export async function createVelaFamily(name: string, userId: string) {
+export async function createVelaFamily(name: string) {
+  if (!familyName) throw new Error('Family name is required');
+  const { data: identity, error: identityError } =
+  await supabase.auth.getUser();
+
+if (identityError) throw identityError;
+
+const userId = identity.user?.id;
+
+if (!userId) {
+  throw new Error('Debes iniciar sesión para crear una familia');
+}
   const familyName = name.trim();
   if (!familyName) throw new Error('Family name is required');
   const { data, error } = await supabase
