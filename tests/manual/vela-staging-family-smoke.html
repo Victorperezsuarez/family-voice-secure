@@ -15,6 +15,7 @@
 <button id="issue">6. Crear invitación</button><button id="accept">7. Aceptar invitación</button>
 <button id="privacy">4. Probar privacidad (solo lectura)</button>
 <button id="selfjoin">5. Intentar acceso sin invitación</button>
+<button id="updatecheck">8. Comprobar bloqueo UPDATE (sin cambiar rol)</button>
 <button id="login">1. Iniciar sesión</button><button id="create">2. Crear familia</button><button id="verify">3. Verificar membresía</button><button id="logout">Cerrar sesión</button>
 <pre id="out" aria-live="polite">Esperando acción.</pre>
 <script type="module">
@@ -72,9 +73,9 @@ $('create').onclick=()=>action(async()=>{
  report({status:'Familia creada',family_id:data,user_id:user.id});
 });
 $('verify').onclick=()=>action(async()=>{
- if(!lastFamilyId)throw Error('Primero crea la familia');
- const {data,error}=await getClient().from('family_users').select('family_id,user_id,role').eq('family_id',lastFamilyId);
- if(error)throw error;report({family_id:lastFamilyId,memberships:data});
+ const id=lastFamilyId||$('targetFamily').value.trim();
+ const {data,error}=await getClient().from('family_users').select('family_id,user_id,role').eq('family_id',id);
+ if(error)throw error;report({family_id:id,memberships:data});
 });
 $('privacy').onclick=()=>action(async()=>{
  const s=getClient();
@@ -102,6 +103,24 @@ $('selfjoin').onclick=()=>action(async()=>{
    membresia_visible:check.data??null,error_verificacion:check.error?.message??null,
    interpretacion:attempt.error&& !check.error && check.data.length===0?'RECHAZADO: resultado esperado':
      !attempt.error?'ALERTA: inserción aceptada; detener pruebas y revisar RLS':'Revisar resultado de verificación'});
+});
+$('updatecheck').onclick=()=>action(async()=>{
+ const s=getClient();const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Primero inicia sesión con la cuenta miembro');
+ const id=$('targetFamily').value.trim();
+ const before=await s.from('family_users').select('family_id,user_id,role').eq('family_id',id).eq('user_id',user.id);
+ if(before.error)throw before.error;
+ if(before.data.length!==1||before.data[0].role!=='member')throw Error('Prueba detenida: la cuenta actual debe ser miembro (member) de esta familia');
+ if(!confirm('Prueba segura en staging: intentar actualizar member a member (sin cambiar el rol). ¿Continuar?'))return;
+ const attempt=await s.from('family_users').update({role:'member'}).eq('family_id',id).eq('user_id',user.id).select('family_id,user_id,role');
+ const after=await s.from('family_users').select('family_id,user_id,role').eq('family_id',id).eq('user_id',user.id);
+ report({status:'Prueba de bloqueo de UPDATE sin cambio de rol',usuario:user.id,family_id:id,
+   filas_actualizadas:attempt.data?.length??null,error_actualizacion:attempt.error?.message??null,
+   rol_antes:before.data[0].role,rol_despues:after.data?.[0]?.role??null,
+   error_verificacion:after.error?.message??null,
+   interpretacion:attempt.error?'RECHAZADO por error: revisar detalle':
+     attempt.data?.length===0?'RECHAZADO: ninguna fila actualizada (esperado por RLS)':
+     'ALERTA: UPDATE directo permitido; revisar políticas antes de avanzar'});
 });
 $('logout').onclick=()=>action(async()=>{
  if(client)await client.auth.signOut();client=null;lastFamilyId=null;$('password').value='';report('Sesión cerrada');
