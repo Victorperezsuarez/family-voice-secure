@@ -53,3 +53,9 @@ Consulta de solo lectura en `vela-staging`, según resultado aportado por usuari
 - Número de políticas RLS de escritura (INSERT/UPDATE/DELETE/ALL) = 0.
 **Resultado:** control de escritura directa de invitaciones aprobado para rol authenticated; no hay necesidad de cambiar estos grants actualmente. **SEC-005 permanece abierto** hasta auditar privilegios anon/otros roles, políticas SELECT, funciones SECURITY DEFINER y pruebas negativas de RPC. No extrapolar a producción.
 **Próximo control:** revisar privilegios SELECT y funciones de invitación para anon/authenticated, sin modificar datos.
+
+## Verificación 2026-10-25 — SEC-005, lectura de invitaciones (dos capturas SQL Editor)
+- `information_schema.role_table_grants` para `public.vela_family_invitations` y roles `anon`/`authenticated`: **0 filas**; no se observaron concesiones directas listadas para esos roles.
+- `pg_policies` para `public.vela_family_invitations`: **0 filas**; ninguna política RLS para la tabla.
+- Combinado con RLS activado y ausencia de permisos de escritura ya verificados: acceso directo por roles cliente anon/authenticated bloqueado según consultas aportadas.
+**Decisión:** conservar aislamiento de tabla y acceso mediante funciones autorizadas; no modificar SQL. **SEC-005 sigue parcialmente abierto** para comprobar privilegios EXECUTE anon, pruebas negativas de funciones, grants heredados/roles especiales y validaciones de acceso. Evidencia: capturas aportadas por usuario. No extrapolar a otras tablas ni producción.
