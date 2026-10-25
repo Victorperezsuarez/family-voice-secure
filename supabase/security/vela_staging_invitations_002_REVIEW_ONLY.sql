@@ -5,13 +5,15 @@
 -- SECURITY: review function owner, EXECUTE privileges, schema exposure, and test two accounts first.
 BEGIN;
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+-- pgcrypto was verified in the extensions schema; do not relocate an installed extension.
+-- STOP if extensions.digest / extensions.gen_random_bytes are not available.
 
 CREATE TABLE public.vela_family_invitations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   family_id uuid NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
   invited_by uuid NOT NULL REFERENCES auth.users(id),
   invited_email text NOT NULL,
+  -- Invitations bind to the verified email of the accepting account.
   role text NOT NULL DEFAULT 'member' CHECK (role IN ('admin','member')),
   token_hash text NOT NULL UNIQUE,
   status text NOT NULL DEFAULT 'pending'
@@ -88,10 +90,13 @@ BEGIN
      OR v_inv.invited_email <> v_email THEN
     RAISE EXCEPTION 'Invitation invalid, expired, or not intended for this account';
   END IF;
+  IF EXISTS (SELECT 1 FROM public.family_users fu
+             WHERE fu.family_id = v_inv.family_id AND fu.user_id = v_actor) THEN
+    RAISE EXCEPTION 'User already belongs to this family';
+  END IF;
   INSERT INTO public.family_users(family_id, user_id, role)
-  VALUES (v_inv.family_id, v_actor, v_inv.role)
-  ON CONFLICT (family_id, user_id) DO NOTHING;
-  IF NOT FOUND THEN RAISE EXCEPTION 'User already belongs to this family'; END IF;
+  VALUES (v_inv.family_id, v_actor, v_inv.role);
+  -- A UNIQUE(family_id,user_id) constraint rejects concurrent duplicate memberships.
   UPDATE public.vela_family_invitations
   SET status='accepted', accepted_by=v_actor, accepted_at=now()
   WHERE id=v_inv.id;
@@ -110,5 +115,9 @@ COMMIT;
 -- 2. Verify extensions.gen_random_bytes and extensions.digest exist in staging.
 -- 3. Check PostgREST exposed schemas / default privileges.
 -- 4. Add invite revocation, resend/rate-limits and email delivery before real users.
--- 5. Test: non-admin issue denied; wrong email denied; expired/replayed denied;
+-- 5. Before execution: inspect whether direct INSERT/UPDATE/DELETE on family_users
+--    and families are revoked from authenticated; otherwise RLS alone must block
+--    role escalation, member removal, family ownership changes, and other writes.
+-- 6. Never send tokens to logs, analytics or third parties; only to intended recipient.
+-- 7. Test: non-admin issue denied; wrong email denied; expired/replayed denied;
 --    successful acceptance; role unchanged; cross-family isolation retained.
