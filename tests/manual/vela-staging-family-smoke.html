@@ -16,11 +16,12 @@
 <button id="privacy">4. Probar privacidad (solo lectura)</button>
 <button id="selfjoin">5. Intentar acceso sin invitación</button>
 <button id="updatecheck">8. Comprobar bloqueo UPDATE (sin cambiar rol)</button>
+<button id="replay" disabled>9. Comprobar rechazo de reutilización</button>
 <button id="login">1. Iniciar sesión</button><button id="create">2. Crear familia</button><button id="verify">3. Verificar membresía</button><button id="logout">Cerrar sesión</button>
 <pre id="out" aria-live="polite">Esperando acción.</pre>
 <script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.49.4';
-let client=null, lastFamilyId=null;
+let client=null, lastFamilyId=null, replayToken=null, replayUserId=null;
 const $=id=>document.getElementById(id);
 const report=x=>{$('out').textContent=typeof x==='string'?x:JSON.stringify(x,null,2)};
 function getClient(){
@@ -55,8 +56,24 @@ $('accept').onclick=()=>action(async()=>{
  if(!/^[0-9a-f]{64}$/.test(token))throw Error('Introduce el código completo de invitación');
  const {data,error}=await s.rpc('vela_accept_family_invitation',{p_token:token});
  if(error)throw error;
- $('inviteToken').value='';
- report({status:'Invitación aceptada',family_id:data,user_id:user.id});
+ replayToken=token;replayUserId=user.id;
+ $('inviteToken').value='';$('replay').disabled=false;
+ report({status:'Invitación aceptada',family_id:data,user_id:user.id,
+   siguiente_paso:'Pulsa 9 para comprobar rechazo del segundo uso. No cierres ni recargues la página.'});
+});
+$('replay').onclick=()=>action(async()=>{
+ const token=replayToken, expectedUser=replayUserId;
+ if(!token||!expectedUser)throw Error('Primero acepta una invitación nueva con esta página; el código anterior ya no está disponible');
+ const s=getClient();const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user||user.id!==expectedUser)throw Error('La sesión debe seguir siendo la cuenta que aceptó la invitación');
+ if(!confirm('Prueba de reutilización en vela-staging: intentar aceptar por segunda vez la misma invitación ya aceptada. Se espera rechazo. ¿Continuar?'))return;
+ replayToken=null;replayUserId=null;$('replay').disabled=true;
+ const {data,error}=await s.rpc('vela_accept_family_invitation',{p_token:token});
+ report({status:'Prueba de reutilización de invitación',usuario:user.id,
+   segunda_aceptacion_permitida:!error,
+   error_segundo_intento:error?.message??null,
+   interpretacion:error?'RECHAZADO: segundo uso impedido (esperado)':'ALERTA: segundo uso aceptado; detener pruebas y revisar función',
+   codigo_eliminado_de_memoria:true});
 });
 $('login').onclick=()=>action(async()=>{
  const s=getClient();
