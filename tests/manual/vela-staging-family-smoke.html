@@ -10,6 +10,7 @@
 <label>Nombre de la familia de prueba<input id="family" value="VELA STAGING TEST FAMILY"></label>
 <label>ID de familia existente para prueba de privacidad<input id="targetFamily" value="629831b0-0ccc-4502-9665-1f8a2583ca1e" readonly></label>
 <button id="privacy">4. Probar privacidad (solo lectura)</button>
+<button id="selfjoin">5. Intentar acceso sin invitación</button>
 <button id="login">1. Iniciar sesión</button><button id="create">2. Crear familia</button><button id="verify">3. Verificar membresía</button><button id="logout">Cerrar sesión</button>
 <pre id="out" aria-live="polite">Esperando acción.</pre>
 <script type="module">
@@ -57,6 +58,20 @@ $('privacy').onclick=()=>action(async()=>{
    miembros_visibles:members.data??null,error_miembros:members.error?.message??null,
    interpretacion:family.error||members.error?'Hay errores que revisar':
      family.data.length===0&&members.data.length===0?'SIN ACCESO VISIBLE: esperado para usuario externo':'REVISAR: hay datos visibles'});
+});
+$('selfjoin').onclick=()=>action(async()=>{
+ const s=getClient();
+ const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Primero inicia sesión');
+ const id=$('targetFamily').value.trim();
+ if(!confirm('Prueba en vela-staging: intentar agregar al usuario actual como admin de la familia de prueba. Se espera rechazo por RLS. ¿Continuar?'))return;
+ const attempt=await s.from('family_users').insert({family_id:id,user_id:user.id,role:'admin'}).select('family_id,user_id,role');
+ const check=await s.from('family_users').select('family_id,user_id,role').eq('family_id',id).eq('user_id',user.id);
+ report({status:'Prueba de escritura sin invitación',usuario:user.id,family_id:id,
+   insercion_aceptada:!attempt.error, error_insercion:attempt.error?.message??null,
+   membresia_visible:check.data??null,error_verificacion:check.error?.message??null,
+   interpretacion:attempt.error&& !check.error && check.data.length===0?'RECHAZADO: resultado esperado':
+     !attempt.error?'ALERTA: inserción aceptada; detener pruebas y revisar RLS':'Revisar resultado de verificación'});
 });
 $('logout').onclick=()=>action(async()=>{
  if(client)await client.auth.signOut();client=null;lastFamilyId=null;$('password').value='';report('Sesión cerrada');
