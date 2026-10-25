@@ -59,3 +59,7 @@ Consulta de solo lectura en `vela-staging`, según resultado aportado por usuari
 - `pg_policies` para `public.vela_family_invitations`: **0 filas**; ninguna política RLS para la tabla.
 - Combinado con RLS activado y ausencia de permisos de escritura ya verificados: acceso directo por roles cliente anon/authenticated bloqueado según consultas aportadas.
 **Decisión:** conservar aislamiento de tabla y acceso mediante funciones autorizadas; no modificar SQL. **SEC-005 sigue parcialmente abierto** para comprobar privilegios EXECUTE anon, pruebas negativas de funciones, grants heredados/roles especiales y validaciones de acceso. Evidencia: capturas aportadas por usuario. No extrapolar a otras tablas ni producción.
+
+## Verificación 2026-10-25 — permisos EXECUTE de funciones (captura SQL Editor)
+Se comprobó `has_function_privilege` para cinco funciones: `vela_accept_family_invitation`, `vela_create_family`, `vela_is_family_admin`, `vela_is_family_member`, `vela_issue_family_invitation`. En todos los casos: `anon=false`, `authenticated=true`.
+**Decisión:** conservar los permisos EXECUTE actuales; bloqueo de ejecución anónima confirmado. Las validaciones internas y los casos negativos de RPC siguen pendientes. **SEC-005 no cerrado globalmente**. Próximo control: ejecución de `vela_issue_family_invitation` por miembro normal (debe rechazarse), con verificación de que no se generó invitación; no compartir tokens ni claves.
