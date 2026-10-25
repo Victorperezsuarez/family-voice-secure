@@ -63,3 +63,8 @@ Consulta de solo lectura en `vela-staging`, según resultado aportado por usuari
 ## Verificación 2026-10-25 — permisos EXECUTE de funciones (captura SQL Editor)
 Se comprobó `has_function_privilege` para cinco funciones: `vela_accept_family_invitation`, `vela_create_family`, `vela_is_family_admin`, `vela_is_family_member`, `vela_issue_family_invitation`. En todos los casos: `anon=false`, `authenticated=true`.
 **Decisión:** conservar los permisos EXECUTE actuales; bloqueo de ejecución anónima confirmado. Las validaciones internas y los casos negativos de RPC siguen pendientes. **SEC-005 no cerrado globalmente**. Próximo control: ejecución de `vela_issue_family_invitation` por miembro normal (debe rechazarse), con verificación de que no se generó invitación; no compartir tokens ni claves.
+
+## Verificación 2026-10-25 — SEC-002, emisión de invitación administrativa por miembro
+Evidencia: captura de la página de pruebas manuales `vela-staging` aportada por el usuario. Cuenta de prueba con rol `member` intentó `vela_issue_family_invitation` para rol `admin`; la interfaz mostró `Error: Not authorized to invite`.
+**Resultado:** prueba negativa de autorización RPC aprobada; no se observó token generado. La captura no constituye prueba independiente de ausencia de registro en DB, pero la excepción de función debería revertir la transacción.
+**Decisión:** mantener la validación actual de `admin` en la función. SEC-002 sigue abierto para pruebas de token incorrecto, replay, vencimiento, revocación y reglas de invitación admin. No cambiar producción.
