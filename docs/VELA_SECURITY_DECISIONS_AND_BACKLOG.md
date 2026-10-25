@@ -45,3 +45,11 @@ Estas observaciones NO equivalen a pentest ni validan rutas no probadas.
 
 ## Procedimiento de mantenimiento
 Actualizar este registro en cada auditoría, cambio de SQL o decisión de producto. No marcar «implementado» hasta tener commit, migración aplicada en staging y evidencia de prueba. Cada cambio debe anotar fecha, enlace a PR/commit, resultado, responsable y pendientes.
+
+## Verificación 2026-10-25 — SEC-005, invitaciones (captura de SQL Editor)
+Consulta de solo lectura en `vela-staging`, según resultado aportado por usuario:
+- `public.vela_family_invitations`: RLS = true.
+- `authenticated`: INSERT = false; UPDATE = false; DELETE = false.
+- Número de políticas RLS de escritura (INSERT/UPDATE/DELETE/ALL) = 0.
+**Resultado:** control de escritura directa de invitaciones aprobado para rol authenticated; no hay necesidad de cambiar estos grants actualmente. **SEC-005 permanece abierto** hasta auditar privilegios anon/otros roles, políticas SELECT, funciones SECURITY DEFINER y pruebas negativas de RPC. No extrapolar a producción.
+**Próximo control:** revisar privilegios SELECT y funciones de invitación para anon/authenticated, sin modificar datos.
