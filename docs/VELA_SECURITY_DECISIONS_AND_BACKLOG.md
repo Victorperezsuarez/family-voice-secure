@@ -1,0 +1,47 @@
+# Vela — Registro de decisiones y mejoras de seguridad
+Fecha de evaluación: 2026-10-25
+Estado: investigación comparativa y planificación; NO implementado por este documento.
+Ámbito: vela-staging, familias, membresías, invitaciones y funciones SQL.
+
+## Política de decisión
+Antes de diseñar una capacidad crítica: (1) describir necesidad y amenaza; (2) cotejar al menos dos referencias independientes cuando existan, distinguiendo documentación oficial de incidentes demostrados; (3) comprobar el estado real del código/DB; (4) registrar alternativas, elección, coste y pruebas; (5) decidir MVP bloqueante, MVP recomendable o post-MVP; (6) implementar solo en rama y staging, validar casos positivos/negativos, y aprobar antes de producción.
+Nunca presentar una ausencia de funcionalidad como incidente ocurrido en terceros ni confundir prácticas publicadas con pruebas de seguridad.
+
+## Referencias verificadas
+- GitHub: invitaciones caducan en 7 días; edición/cancelación antes de aceptación; límites de invitación de 50 por 24 h, ampliables según condiciones. https://docs.github.com/en/organizations/managing-membership-in-your-organization/inviting-users-to-join-your-organization
+- Slack: administradores pueden gestionar invitaciones pendientes, reenviar/extender/eliminar; caducan en 30 días. https://slack.com/help/articles/360060363633-Manage-pending-invitations-and-invite-links-for-your-workspace
+- Slack: puede exigir aprobación de administrador para invitaciones iniciadas por miembros. https://slack.com/help/articles/115004854783-Require-admin-approval-for-invitations-to-Slack
+- Supabase: funciones SECURITY DEFINER requieren límites explícitos de EXECUTE, validaciones internas y search_path fijado; RLS y GRANT deben auditarse juntos. https://supabase.com/docs/guides/database/functions
+- Supabase: los privilegios de tabla no desaparecen al añadir RLS; los objetos y funciones privilegiadas expuestas requieren evaluación. https://supabase.com/docs/guides/database/postgres/row-level-security
+
+## Registro de decisiones
+| ID | Mejora / amenaza | Evidencia comparativa | Estado actual Vela | Decisión / prioridad | Criterio de aceptación |
+|---|---|---|---|---|---|
+| SEC-001 | Cancelar invitaciones pendientes | GitHub y Slack permiten cancelar/revocar | No se aportó función de revocación | MVP bloqueante antes de usuarios reales | Admin revoca; token revocado no funciona; no afecta invitaciones ya aceptadas |
+| SEC-002 | Control de roles elevados | GitHub distingue roles; Slack permite aprobación administrativa | Admin puede invitar admin; validación admin actual en RPC | MVP bloqueante: confirmación clara y auditoría para invitaciones admin; evaluar si exigir confirmación adicional | Member no emite invitaciones; no se eleva por edición de token/rol; pruebas con dos cuentas |
+| SEC-003 | Límite y abuso de invitaciones | GitHub aplica límite diario; Slack gestiona solicitudes | No se observó rate limit en función compartida | MVP bloqueante: límite servidor por admin/familia y respuesta controlada; umbral se decide con pruebas | Exceso se bloquea sin exponer datos ni saturar email |
+| SEC-004 | Token, identidad y replay | GitHub exige aceptación; Supabase recomienda validar autorización | Token aleatorio 32 bytes y SHA-256, correo verificado, vencimiento 7 días, FOR UPDATE, status pending | MVP: conservar; añadir pruebas de email equivocado, vencido, replay, concurrencia | Ninguna aceptación indebida, un único uso |
+| SEC-005 | Privilegios directos y SECURITY DEFINER | Supabase: RLS + GRANT; función privilegiada debe validar actor | family_users UPDATE sin política; SELECT restringido; cinco funciones definer | MVP bloqueante: revisar grants de invitaciones, función helper, propiedad y exposición API | Ninguna escritura directa no autorizada, incluso si se cambia payload |
+| SEC-006 | Reenvío y extensión de invitación | Slack admite reenvío/extensión; GitHub reintentos | No implementado en funciones aportadas | Post-MVP salvo que pruebas con familias lo exijan | Reenvío revoca token anterior; límite y auditoría |
+| SEC-007 | Auditoría de invitaciones y cambios de rol | GitHub roles y administración; requerimiento propio de trazabilidad | status, invited_by, accepted_by y fechas presentes; sin auditoría completa confirmada | MVP bloqueante para elevación/revocación; UI avanzada post-MVP | Registro de actor, familia, acción, tiempo, resultado; nunca token plano |
+| SEC-008 | Gobernanza de privacidad de memorias y adjuntos | Supabase RLS y grants | Staging probado solo para familias/membresías; no pruebas integrales de memorias | MVP bloqueante antes de almacenar recuerdos privados | Pruebas cruzadas por familia, visibilidad, fuentes, historial y storage |
+| SEC-009 | UX administrativa de invitaciones | GitHub/Slack exponen estado y cancelación | HTML manual de pruebas, no interfaz de producto | MVP mínimo: ver pendientes/cancelar; gestión avanzada post-MVP | Admin ve pendientes sin tokens y puede cancelar |
+
+## Evidencia de pruebas existente (capturas aportadas por usuario)
+- Staging: creación de familia y membresía admin correctas.
+- Usuario externo: SELECT de familias y membresías sin acceso visible; inserción directa sin invitación rechazada.
+- Invitación dirigida a correo verificado: aceptada; miembro visible en family_users.
+- Usuario member: UPDATE directo member→member produjo 0 filas y mantuvo rol.
+- Inventario: cinco funciones SECURITY DEFINER ejecutables por authenticated; código de funciones revisado.
+Estas observaciones NO equivalen a pentest ni validan rutas no probadas.
+
+## Riesgos y cuestiones abiertas
+- Revisar privilegios directos de vela_family_invitations y sus políticas RLS.
+- Inspeccionar tabla, restricciones y funciones completas; verificar email normalization y ausencia de escrituras directas.
+- Revisar si funciones de consulta que aceptan p_user_id exponen pertenencia de terceros; limitar EXECUTE/ubicación según necesidad.
+- Determinar mecanismo de revocación y rate limit que no añada complejidad innecesaria.
+- Confirmar pruebas negativas y controles de almacenamiento de archivos.
+- No se han documentado incidentes concretos de seguridad de GitHub o Slack en estas fuentes: las referencias describen controles y patrones, no fallas históricas comprobadas.
+
+## Procedimiento de mantenimiento
+Actualizar este registro en cada auditoría, cambio de SQL o decisión de producto. No marcar «implementado» hasta tener commit, migración aplicada en staging y evidencia de prueba. Cada cambio debe anotar fecha, enlace a PR/commit, resultado, responsable y pendientes.
