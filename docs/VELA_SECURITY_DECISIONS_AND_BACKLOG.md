@@ -114,3 +114,6 @@ Captura de SQL Editor `vela-staging`: consulta de solo lectura de `information_s
 
 ## SEC-001 — preflight función de revocación (2026-10-25)
 Captura del usuario: `SELECT to_regprocedure('public.vela_revoke_family_invitation(uuid)') AS funcion_existente;` devolvió `NULL` en `vela-staging`. No existe una función con esa firma; no se sobrescribirá una implementación homónima al instalar el borrador. Estado: preflight favorable; **migración aún NO ejecutada**. Próximo paso: ejecutar solo en `vela-staging` desde SQL Editor después de revisar el borrador; validar DDL y permisos y realizar pruebas negativas.
+
+## SEC-001 — ejecución de migración de revocación en vela-staging (2026-10-25)
+Captura aportada por usuario del SQL Editor del proyecto `vela-staging`: ejecución del archivo `supabase/security/vela_invitation_revocation_STAGING_REVIEW_ONLY.sql` hasta `COMMIT;` muestra `Success. No rows returned`. **Resultado: migración ejecutada sin error reportado**. Aún NO están verificadas independientemente las columnas, constraints, grants ni la función, ni se han realizado pruebas negativas de revocación. Decisión: verificar esquema y permisos con consulta read-only antes de probar cancelación. No aplicar a producción original.
