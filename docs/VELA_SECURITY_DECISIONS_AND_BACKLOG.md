@@ -111,3 +111,6 @@ Captura del usuario: consulta `SELECT status, count(*) FROM public.vela_family_i
 
 ## SEC-001 — comprobación de colisiones antes de migración (2026-10-25)
 Captura de SQL Editor `vela-staging`: consulta de solo lectura de `information_schema.columns` y `pg_constraint` para `revoked_by`, `revoked_at`, `vela_invitation_revocation_consistency` y `vela_family_invitations_revoked_by_fkey` devolvió **0 filas**. No se detectaron nombres existentes en la tabla. Borrador `supabase/security/vela_invitation_revocation_STAGING_REVIEW_ONLY.sql` revisado: función restringe revocación a admin de la familia, usa `FOR UPDATE`, exige pending y registra autor/fecha. **No ejecutado**. Próximo paso: confirmar preflight de ausencia de función homónima y rol propietario de funciones SECURITY DEFINER, después decidir ejecución en staging.
+
+## SEC-001 — preflight función de revocación (2026-10-25)
+Captura del usuario: `SELECT to_regprocedure('public.vela_revoke_family_invitation(uuid)') AS funcion_existente;` devolvió `NULL` en `vela-staging`. No existe una función con esa firma; no se sobrescribirá una implementación homónima al instalar el borrador. Estado: preflight favorable; **migración aún NO ejecutada**. Próximo paso: ejecutar solo en `vela-staging` desde SQL Editor después de revisar el borrador; validar DDL y permisos y realizar pruebas negativas.
