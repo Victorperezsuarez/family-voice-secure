@@ -95,3 +95,7 @@ El usuario compartió las columnas de `public.vela_family_invitations`. Existen 
 
 ## SEC-004: confirmación adicional, 2026-10-25
 La cuenta destinataria aceptó correctamente la invitación después de que otra cuenta recibiera rechazo con ese mismo código. Captura recibida. Resultado: flujo de destinatario legítimo aprobado; pendiente prueba de vencimiento y concurrencia. No se cambió SQL.
+
+## SEC-001: restricciones verificadas en staging, 2026-10-25
+Resultado aportado por usuario de `pg_constraint` para `public.vela_family_invitations`: `status` admite `pending`, `accepted`, `revoked` (restricción `vela_family_invitations_status_check`); `role` admite `admin`/`member`; `token_hash` UNIQUE; PK `id`; FK `accepted_by` e `invited_by` a `auth.users`; FK `family_id` a `families` ON DELETE CASCADE; restricción de consistencia exige `accepted_by` y `accepted_at` presentes únicamente cuando `status=accepted`; email normalizado y `expires_at > created_at`.
+**Decisión:** NO modificar CHECK de status: `revoked` ya existe. MVP pendiente: añadir trazabilidad `revoked_by`/`revoked_at` si se aprueba, y función privilegiada de revocación que compruebe `auth.uid()` admin, familia y estado pending; probar bloqueo de token revocado y ausencia de alteración de aceptadas. Antes de aplicar migración revisar nombres de funciones y esquema, y realizar pruebas en staging. Evidencia recibida, no SQL de modificación ejecutado.
