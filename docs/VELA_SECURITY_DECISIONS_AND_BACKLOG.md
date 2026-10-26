@@ -89,3 +89,9 @@ Captura del usuario confirma `vela_create_family` con nueva familia staging `4d4
 - Destinatario incorrecto: una cuenta distinta de la destinataria intentó aceptar una invitación válida; Supabase devolvió `Invitation invalid, expired, or not intended for this account`. Control aprobado para el escenario probado.
 - Decisión MVP: conservar ambas validaciones. Pendiente confirmar que la invitación permanece `pending` y puede aceptarla el destinatario correcto; también probar vencimiento y revocación.
 - Evidencia: capturas proporcionadas por usuario; no hubo cambios SQL.
+
+## SEC-001: revisión de esquema para cancelación, 2026-10-25
+El usuario compartió las columnas de `public.vela_family_invitations`. Existen `status`, `invited_by`, `created_at`, `expires_at`, `accepted_by`, `accepted_at`; no existen `revoked_by` ni `revoked_at`. Propuesta para MVP (NO implementada): estado `revoked`, metadatos de revocación y función autorizada únicamente para administradores. Antes de escribir migración, comprobar restricciones CHECK de `status`, claves externas y permisos. Conservar historial; no eliminar invitaciones canceladas.
+
+## SEC-004: confirmación adicional, 2026-10-25
+La cuenta destinataria aceptó correctamente la invitación después de que otra cuenta recibiera rechazo con ese mismo código. Captura recibida. Resultado: flujo de destinatario legítimo aprobado; pendiente prueba de vencimiento y concurrencia. No se cambió SQL.
