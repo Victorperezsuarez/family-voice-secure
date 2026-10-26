@@ -108,3 +108,6 @@ Creado `supabase/security/vela_invitation_revocation_STAGING_REVIEW_ONLY.sql` (c
 
 ## SEC-001 — inventario de estados previo a migración (2026-10-25)
 Captura del usuario: consulta `SELECT status, count(*) FROM public.vela_family_invitations GROUP BY status` en vela-staging devolvió únicamente `accepted=4`. Por tanto, al momento de la consulta `pending=0` y `revoked=0`. No existen revocaciones históricas que requieran atribuir autor o fecha. Decisión: mantener las 4 invitaciones aceptadas intactas; seguir con revisión pre-migración antes de ejecutar SQL. Ninguna modificación en DB.
+
+## SEC-001 — comprobación de colisiones antes de migración (2026-10-25)
+Captura de SQL Editor `vela-staging`: consulta de solo lectura de `information_schema.columns` y `pg_constraint` para `revoked_by`, `revoked_at`, `vela_invitation_revocation_consistency` y `vela_family_invitations_revoked_by_fkey` devolvió **0 filas**. No se detectaron nombres existentes en la tabla. Borrador `supabase/security/vela_invitation_revocation_STAGING_REVIEW_ONLY.sql` revisado: función restringe revocación a admin de la familia, usa `FOR UPDATE`, exige pending y registra autor/fecha. **No ejecutado**. Próximo paso: confirmar preflight de ausencia de función homónima y rol propietario de funciones SECURITY DEFINER, después decidir ejecución en staging.
