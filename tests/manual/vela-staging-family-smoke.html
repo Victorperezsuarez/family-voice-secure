@@ -17,6 +17,8 @@
 <button id="selfjoin">5. Intentar acceso sin invitación</button>
 <button id="updatecheck">8. Comprobar bloqueo UPDATE (sin cambiar rol)</button>
 <button id="replay" disabled>9. Comprobar rechazo de reutilización</button>
+<label>ID de invitación para prueba de revocación<input id="revokeId" placeholder="UUID de invitación pendiente"></label>
+<button id="revoke">10. Probar revocación (admin o miembro)</button>
 <button id="login">1. Iniciar sesión</button><button id="create">2. Crear familia</button><button id="verify">3. Verificar membresía</button><button id="logout">Cerrar sesión</button>
 <pre id="out" aria-live="polite">Esperando acción.</pre>
 <script type="module">
@@ -74,6 +76,17 @@ $('replay').onclick=()=>action(async()=>{
    error_segundo_intento:error?.message??null,
    interpretacion:error?'RECHAZADO: segundo uso impedido (esperado)':'ALERTA: segundo uso aceptado; detener pruebas y revisar función',
    codigo_eliminado_de_memoria:true});
+});
+$('revoke').onclick=()=>action(async()=>{
+ const s=getClient();const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Inicia sesión antes de probar la revocación');
+ const id=$('revokeId').value.trim();
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))throw Error('Introduce un ID de invitación válido');
+ if(!confirm('STAGING: intentar revocar la invitación '+id+'. Un administrador puede cancelarla realmente; un miembro debe ser rechazado. ¿Continuar?'))return;
+ const {data,error}=await s.rpc('vela_revoke_family_invitation',{p_invitation_id:id});
+ report({status:'Prueba de revocación',usuario:user.id,invitation_id:id,
+   revocacion_permitida:!error,resultado:data??null,error:error?.message??null,
+   nota:'Verificar estado y metadatos en SQL Editor. No se muestra el token privado.'});
 });
 $('login').onclick=()=>action(async()=>{
  const s=getClient();
