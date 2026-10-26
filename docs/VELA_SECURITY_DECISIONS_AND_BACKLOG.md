@@ -117,3 +117,6 @@ Captura del usuario: `SELECT to_regprocedure('public.vela_revoke_family_invitati
 
 ## SEC-001 — ejecución de migración de revocación en vela-staging (2026-10-25)
 Captura aportada por usuario del SQL Editor del proyecto `vela-staging`: ejecución del archivo `supabase/security/vela_invitation_revocation_STAGING_REVIEW_ONLY.sql` hasta `COMMIT;` muestra `Success. No rows returned`. **Resultado: migración ejecutada sin error reportado**. Aún NO están verificadas independientemente las columnas, constraints, grants ni la función, ni se han realizado pruebas negativas de revocación. Decisión: verificar esquema y permisos con consulta read-only antes de probar cancelación. No aplicar a producción original.
+
+## SEC-001 — verificación postmigración de revocación (2026-10-25)
+Captura SQL Editor `vela-staging`: `revoked_by` existe=true; `revoked_at` existe=true; `vela_invitation_revocation_consistency` existe y está validada=true; función `vela_revoke_family_invitation(uuid)` existe=true; EXECUTE por `anon`=false; EXECUTE por `authenticated`=true. **Resultado: seis verificaciones técnicas aprobadas**. No equivale a prueba de autorización interna. Pendientes: probar usuario member no puede revocar, admin sí puede revocar pendiente, token revocado no se acepta, invitación aceptada no se altera, admin ajeno no puede revocar. No tocar producción.
