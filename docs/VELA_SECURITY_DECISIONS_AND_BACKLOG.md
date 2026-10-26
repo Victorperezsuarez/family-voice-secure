@@ -83,3 +83,9 @@ Se actualizó `tests/manual/vela-staging-family-smoke.html` en rama de auditorí
 
 ## Actualización 2026-10-25 — SEC-004, segunda familia para replay
 Captura del usuario confirma `vela_create_family` con nueva familia staging `4d4f62d9-56a3-43ca-81e3-56bd01f42836`, creada por cuenta admin `2a98f820-55b7-41e6-a882-c4ebb7e7edfa`. Se detectó que el HTML de pruebas tenía `targetFamily` readonly y apuntaba a la familia original, por lo que la invitación no podía dirigirse a la nueva familia. Se corrigió `tests/manual/vela-staging-family-smoke.html` en commit `ff43ba3`: campo editable y asignación automática tras crear familia. **No se ejecutó todavía el replay**. Próxima acción: descargar HTML actualizado, introducir ID nueva familia, emitir invitación member a tercera cuenta, aceptar, pulsar 9, verificar resultado. Sin cambios en DB por esta corrección de HTML ni en producción.
+
+## SEC-004: resultados de pruebas de invitaciones — 2026-10-25
+- Reutilización: tras una aceptación exitosa, la segunda aceptación del mismo código fue rechazada. La página reportó `segunda_aceptacion_permitida=false` y borrado de su referencia temporal. Control aprobado para el escenario probado.
+- Destinatario incorrecto: una cuenta distinta de la destinataria intentó aceptar una invitación válida; Supabase devolvió `Invitation invalid, expired, or not intended for this account`. Control aprobado para el escenario probado.
+- Decisión MVP: conservar ambas validaciones. Pendiente confirmar que la invitación permanece `pending` y puede aceptarla el destinatario correcto; también probar vencimiento y revocación.
+- Evidencia: capturas proporcionadas por usuario; no hubo cambios SQL.
