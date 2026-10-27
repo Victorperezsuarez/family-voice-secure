@@ -138,3 +138,6 @@ Captura HTML staging confirma RPC `Invitación creada`, ID `e7af3ba5-1817-47a9-9
 
 ## SEC-001: verificación de invitación cancelada, 27 octubre 2026
 Evidencia: consulta SQL de lectura sobre la invitación de prueba `e7af3ba5-1817-47a9-9ca0-b087ec1fea5d` en `vela-staging` devuelve `status=revoked`, `revoked_by=2a98f820-55b7-41e6-a882-c4ebb7e7edfa`, `revoked_at=2026-10-27 01:48:23.840864+00`, `accepted_by=NULL`, `accepted_at=NULL`. La prueba previa de aceptación del código devolvió error de invitación inválida. Resultado: PASS para revocación, auditoría y rechazo de aceptación posterior. Pendientes: revocar una invitación ya aceptada, revocación por administrador de otra familia y prueba de concurrencia. No se aplicaron cambios adicionales a Supabase.
+
+## SEC-001 — revocación de invitación aceptada rechazada (2026-10-27)
+Captura de la prueba manual en `vela-staging`: administrador de la familia intentó revocar invitación ya aceptada `cfdcfd2e-16b7-4f7c-bfed-77dc0eacbcf0`; respuesta RPC `revocacion_permitida=false`, `resultado=null`, `error=Only pending invitations can be revoked`. Resultado PASS para rechazo de RPC. Pendiente verificación SQL de `status=accepted`, `revoked_by/revoked_at=NULL` y membresía activa del usuario que aceptó. Sin cambios a producción.
