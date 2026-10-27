@@ -126,3 +126,6 @@ Captura del usuario confirma creación de invitación pendiente en segunda famil
 
 ## SEC-001 — rechazo de revocación por miembro (2026-10-26)
 Captura de la prueba manual en `vela-staging`: sesión `055349a2-c8e6-49b6-a9ef-aae91479cafd` (miembro de segunda familia) intentó `vela_revoke_family_invitation` con invitación `7a2360d3-f25f-4b9b-893b-291600976e26`. Resultado `revocacion_permitida=false`, `resultado=null`, error `Invitation not found or not authorized`. **PASS de rechazo para este escenario**. Pendiente verificar mediante SELECT que invitación sigue `pending`, `revoked_by IS NULL`, `revoked_at IS NULL`, antes de ejecutar prueba como admin. Sin modificación SQL.
+
+## SEC-001 — verificación de integridad tras rechazo de miembro (2026-10-26)
+Captura SQL Editor `vela-staging`: consulta de solo lectura a invitación `7a2360d3-f25f-4b9b-893b-291600976e26` devolvió exactamente una fila con `status=pending`, `revoked_by=NULL`, `revoked_at=NULL`. Junto con rechazo RPC anterior, confirma que el miembro no logró revocar ni modificar esta invitación. **PASS: rechazo e integridad para el escenario probado.** Siguiente prueba: revocación real por administrador de la familia y verificación de autor/fecha. Sin modificaciones SQL en este paso.
