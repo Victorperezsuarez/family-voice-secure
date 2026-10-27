@@ -135,3 +135,6 @@ Captura SQL de vela-staging para invitación `7a2360d3-f25f-4b9b-893b-291600976e
 
 ## SEC-001 — nueva invitación para probar aceptación después de revocación (2026-10-27)
 Captura HTML staging confirma RPC `Invitación creada`, ID `e7af3ba5-1817-47a9-9ca0-b087ec1fea5d`, destinatario de prueba `pharma@nexgempharma.com`, rol `member`, vencimiento `2026-11-03T01:08:45.377241+00:00`. Token privado presente en formulario (no registrado). Advertencia: el campo de revocación todavía contenía el ID antiguo `7a2360d3-f25f-4b9b-893b-291600976e26`; reemplazarlo antes de revocar. Estado: creación confirmada; revocación y prueba de aceptación bloqueada PENDIENTES. Solo staging.
+
+## SEC-001: verificación de invitación cancelada, 27 octubre 2026
+Evidencia: consulta SQL de lectura sobre la invitación de prueba `e7af3ba5-1817-47a9-9ca0-b087ec1fea5d` en `vela-staging` devuelve `status=revoked`, `revoked_by=2a98f820-55b7-41e6-a882-c4ebb7e7edfa`, `revoked_at=2026-10-27 01:48:23.840864+00`, `accepted_by=NULL`, `accepted_at=NULL`. La prueba previa de aceptación del código devolvió error de invitación inválida. Resultado: PASS para revocación, auditoría y rechazo de aceptación posterior. Pendientes: revocar una invitación ya aceptada, revocación por administrador de otra familia y prueba de concurrencia. No se aplicaron cambios adicionales a Supabase.
