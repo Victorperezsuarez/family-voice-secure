@@ -141,3 +141,6 @@ Evidencia: consulta SQL de lectura sobre la invitación de prueba `e7af3ba5-1817
 
 ## SEC-001 — revocación de invitación aceptada rechazada (2026-10-27)
 Captura de la prueba manual en `vela-staging`: administrador de la familia intentó revocar invitación ya aceptada `cfdcfd2e-16b7-4f7c-bfed-77dc0eacbcf0`; respuesta RPC `revocacion_permitida=false`, `resultado=null`, `error=Only pending invitations can be revoked`. Resultado PASS para rechazo de RPC. Pendiente verificación SQL de `status=accepted`, `revoked_by/revoked_at=NULL` y membresía activa del usuario que aceptó. Sin cambios a producción.
+
+## SEC-001 — verificación final de invitación aceptada y membresía intacta (2026-10-27)
+Consulta SQL `vela-staging` para invitación `cfdcfd2e-16b7-4f7c-bfed-77dc0eacbcf0`: `estado_invitacion=accepted`, `revoked_by=NULL`, `revoked_at=NULL`, `rol_actual=member`, `usuario=41951544-ee9d-45f0-9b1a-21469c415f84`. Tras rechazo RPC `Only pending invitations can be revoked`, la invitación y membresía permanecen intactas. **PASS: rechazo de revocación de aceptada e integridad de membresía.** Decisión MVP: separar cancelación de invitaciones pendientes de eventual administración/eliminación de miembros, con permisos y auditoría independientes. Pendiente SEC-001: aislamiento de administradores entre familias y concurrencia. Sin cambios a Supabase producción.
