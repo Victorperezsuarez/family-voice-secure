@@ -62,12 +62,51 @@ export async function saveFamilyMember(member: any) {
   return data;
 }
 
-// Get all family members
-export async function getFamilyMembers(userId: string) {
+// Get all family members for a family
+export async function getFamilyMembers(familyId: string) {
   const { data, error } = await supabase
     .from('family_members')
     .select('*')
-    .eq('user_id', userId)
+    .eq('family_id', familyId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
+}
+// Get the authenticated user's family membership
+export async function getCurrentUserFamily() {
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+
+  if (userError) throw userError;
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('family_users')
+    .select('family_id, role')
+    .eq('user_id', user.id)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data;
+} 
+// Get memories for a family
+export async function getFamilyMemories(familyId: string) {
+  const { data, error } = await supabase
+    .from('memories')
+    .select(`
+      *,
+      family_member:family_members(
+        id,
+        name,
+        relationship
+      )
+    `)
+    .eq('family_id', familyId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;

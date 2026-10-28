@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vela staging · prueba de familias</title>
+<style>body{font:16px system-ui;max-width:680px;margin:40px auto;padding:0 18px;line-height:1.5}label{display:block;margin-top:14px}input{display:block;width:100%;padding:10px;box-sizing:border-box}button{padding:10px;margin:14px 8px 0 0}pre{white-space:pre-wrap;word-break:break-word;background:#eee;padding:15px;border-radius:8px}</style></head><body>
+<h1>Vela · prueba aislada en staging</h1>
+<p>Usar exclusivamente vela-staging. No introducir claves secretas ni compartir contraseñas.</p>
+<label>URL del proyecto staging<input id="url" placeholder="https://...supabase.co"></label>
+<label>Clave publicable de staging<input id="key" type="password" autocomplete="off" placeholder="sb_publishable_..."></label>
+<label>Correo de prueba<input id="email" type="email" autocomplete="username"></label>
+<label>Contraseña de prueba<input id="password" type="password" autocomplete="current-password"></label>
+<label>Nombre de la familia de prueba<input id="family" value="VELA STAGING TEST FAMILY"></label>
+<label>ID de familia existente para prueba de privacidad<input id="targetFamily" value="629831b0-0ccc-4502-9665-1f8a2583ca1e"></label>
+<label>Correo de la persona invitada<input id="inviteEmail" type="email" placeholder="correo de la segunda cuenta"></label>
+<label>Rol de invitación<select id="inviteRole"><option value="member">Miembro</option><option value="admin">Administrador</option></select></label>
+<label>Código de invitación (privado, no enviar capturas)<input id="inviteToken" type="password" autocomplete="off"></label>
+<button id="issue">6. Crear invitación</button><button id="accept">7. Aceptar invitación</button>
+<button id="privacy">4. Probar privacidad (solo lectura)</button>
+<button id="selfjoin">5. Intentar acceso sin invitación</button>
+<button id="updatecheck">8. Comprobar bloqueo UPDATE (sin cambiar rol)</button>
+<button id="replay" disabled>9. Comprobar rechazo de reutilización</button>
+<label>ID de invitación para prueba de revocación<input id="revokeId" placeholder="UUID de invitación pendiente"></label>
+<button id="revoke">10. Probar revocación (admin o miembro)</button>
+<button id="login">1. Iniciar sesión</button><button id="create">2. Crear familia</button><button id="verify">3. Verificar membresía</button><button id="logout">Cerrar sesión</button>
+<pre id="out" aria-live="polite">Esperando acción.</pre>
+<script type="module">
+import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.49.4';
+let client=null, lastFamilyId=null, replayToken=null, replayUserId=null;
+const $=id=>document.getElementById(id);
+const report=x=>{$('out').textContent=typeof x==='string'?x:JSON.stringify(x,null,2)};
+function getClient(){
+ if(client)return client;
+ const url=$('url').value.trim(),key=$('key').value.trim();
+ if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url))throw Error('URL de Supabase no válida');
+ if(!key.startsWith('sb_publishable_'))throw Error('Usa solo la clave publicable de staging');
+ client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ return client;
+}
+async function action(fn){try{await fn()}catch(e){report('Error: '+(e?.message||String(e)))}}
+$('issue').onclick=()=>action(async()=>{
+ const s=getClient();const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Inicia sesión como administrador');
+ const email=$('inviteEmail').value.trim();
+ if(!email||!confirm('¿Generar invitación de prueba para '+email+'?'))return;
+ const {data,error}=await s.rpc('vela_issue_family_invitation',{
+   p_family_id:$('targetFamily').value.trim(),p_email:email,p_role:$('inviteRole').value
+ });
+ if(error)throw error;
+ const invitation=Array.isArray(data)?data[0]:data;
+ if(!invitation?.invitation_token)throw Error('No se recibió el código de invitación');
+ $('inviteToken').value=invitation.invitation_token;
+ report({status:'Invitación creada',invitation_id:invitation.invitation_id,
+   expires_at:invitation.expires_at,
+   instruccion:'El código quedó en el campo privado. No compartir capturas con el código. Cierra sesión e inicia con la cuenta invitada antes de aceptarlo.'});
+});
+$('accept').onclick=()=>action(async()=>{
+ const s=getClient();const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Inicia sesión con la cuenta invitada');
+ const token=$('inviteToken').value.trim();
+ if(!/^[0-9a-f]{64}$/.test(token))throw Error('Introduce el código completo de invitación');
+ const {data,error}=await s.rpc('vela_accept_family_invitation',{p_token:token});
+ if(error)throw error;
+ replayToken=token;replayUserId=user.id;
+ $('inviteToken').value='';$('replay').disabled=false;
+ report({status:'Invitación aceptada',family_id:data,user_id:user.id,
+   siguiente_paso:'Pulsa 9 para comprobar rechazo del segundo uso. No cierres ni recargues la página.'});
+});
+$('replay').onclick=()=>action(async()=>{
+ const token=replayToken, expectedUser=replayUserId;
+ if(!token||!expectedUser)throw Error('Primero acepta una invitación nueva con esta página; el código anterior ya no está disponible');
+ const s=getClient();const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user||user.id!==expectedUser)throw Error('La sesión debe seguir siendo la cuenta que aceptó la invitación');
+ if(!confirm('Prueba de reutilización en vela-staging: intentar aceptar por segunda vez la misma invitación ya aceptada. Se espera rechazo. ¿Continuar?'))return;
+ replayToken=null;replayUserId=null;$('replay').disabled=true;
+ const {data,error}=await s.rpc('vela_accept_family_invitation',{p_token:token});
+ report({status:'Prueba de reutilización de invitación',usuario:user.id,
+   segunda_aceptacion_permitida:!error,
+   error_segundo_intento:error?.message??null,
+   interpretacion:error?'RECHAZADO: segundo uso impedido (esperado)':'ALERTA: segundo uso aceptado; detener pruebas y revisar función',
+   codigo_eliminado_de_memoria:true});
+});
+$('revoke').onclick=()=>action(async()=>{
+ const s=getClient();const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Inicia sesión antes de probar la revocación');
+ const id=$('revokeId').value.trim();
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))throw Error('Introduce un ID de invitación válido');
+ if(!confirm('STAGING: intentar revocar la invitación '+id+'. Un administrador puede cancelarla realmente; un miembro debe ser rechazado. ¿Continuar?'))return;
+ const {data,error}=await s.rpc('vela_revoke_family_invitation',{p_invitation_id:id});
+ report({status:'Prueba de revocación',usuario:user.id,invitation_id:id,
+   revocacion_permitida:!error,resultado:data??null,error:error?.message??null,
+   nota:'Verificar estado y metadatos en SQL Editor. No se muestra el token privado.'});
+});
+$('login').onclick=()=>action(async()=>{
+ const s=getClient();
+ const {data,error}=await s.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
+ $('password').value='';
+ if(error)throw error;
+ report({status:'Sesión iniciada',user_id:data.user?.id});
+});
+$('create').onclick=()=>action(async()=>{
+ const s=getClient();const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Primero inicia sesión');
+ const {data,error}=await s.rpc('vela_create_family',{p_name:$('family').value.trim()});
+ if(error)throw error;lastFamilyId=data;$('targetFamily').value=data;
+ report({status:'Familia creada',family_id:data,user_id:user.id,
+   instruccion:'El campo ID de familia existente se actualizó automáticamente a esta familia.'});
+});
+$('verify').onclick=()=>action(async()=>{
+ const id=lastFamilyId||$('targetFamily').value.trim();
+ const {data,error}=await getClient().from('family_users').select('family_id,user_id,role').eq('family_id',id);
+ if(error)throw error;report({family_id:id,memberships:data});
+});
+$('privacy').onclick=()=>action(async()=>{
+ const s=getClient();
+ const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Primero inicia sesión');
+ const id=$('targetFamily').value.trim();
+ const family=await s.from('families').select('id,name').eq('id',id);
+ const members=await s.from('family_users').select('family_id,user_id,role').eq('family_id',id);
+ report({status:'Prueba de privacidad de solo lectura',consultado_por:user.id,family_id:id,
+   familias_visibles:family.data??null,error_familias:family.error?.message??null,
+   miembros_visibles:members.data??null,error_miembros:members.error?.message??null,
+   interpretacion:family.error||members.error?'Hay errores que revisar':
+     family.data.length===0&&members.data.length===0?'SIN ACCESO VISIBLE: esperado para usuario externo':'REVISAR: hay datos visibles'});
+});
+$('selfjoin').onclick=()=>action(async()=>{
+ const s=getClient();
+ const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Primero inicia sesión');
+ const id=$('targetFamily').value.trim();
+ if(!confirm('Prueba en vela-staging: intentar agregar al usuario actual como admin de la familia de prueba. Se espera rechazo por RLS. ¿Continuar?'))return;
+ const attempt=await s.from('family_users').insert({family_id:id,user_id:user.id,role:'admin'}).select('family_id,user_id,role');
+ const check=await s.from('family_users').select('family_id,user_id,role').eq('family_id',id).eq('user_id',user.id);
+ report({status:'Prueba de escritura sin invitación',usuario:user.id,family_id:id,
+   insercion_aceptada:!attempt.error, error_insercion:attempt.error?.message??null,
+   membresia_visible:check.data??null,error_verificacion:check.error?.message??null,
+   interpretacion:attempt.error&& !check.error && check.data.length===0?'RECHAZADO: resultado esperado':
+     !attempt.error?'ALERTA: inserción aceptada; detener pruebas y revisar RLS':'Revisar resultado de verificación'});
+});
+$('updatecheck').onclick=()=>action(async()=>{
+ const s=getClient();const {data:{user},error:ue}=await s.auth.getUser();
+ if(ue||!user)throw Error('Primero inicia sesión con la cuenta miembro');
+ const id=$('targetFamily').value.trim();
+ const before=await s.from('family_users').select('family_id,user_id,role').eq('family_id',id).eq('user_id',user.id);
+ if(before.error)throw before.error;
+ if(before.data.length!==1||before.data[0].role!=='member')throw Error('Prueba detenida: la cuenta actual debe ser miembro (member) de esta familia');
+ if(!confirm('Prueba segura en staging: intentar actualizar member a member (sin cambiar el rol). ¿Continuar?'))return;
+ const attempt=await s.from('family_users').update({role:'member'}).eq('family_id',id).eq('user_id',user.id).select('family_id,user_id,role');
+ const after=await s.from('family_users').select('family_id,user_id,role').eq('family_id',id).eq('user_id',user.id);
+ report({status:'Prueba de bloqueo de UPDATE sin cambio de rol',usuario:user.id,family_id:id,
+   filas_actualizadas:attempt.data?.length??null,error_actualizacion:attempt.error?.message??null,
+   rol_antes:before.data[0].role,rol_despues:after.data?.[0]?.role??null,
+   error_verificacion:after.error?.message??null,
+   interpretacion:attempt.error?'RECHAZADO por error: revisar detalle':
+     attempt.data?.length===0?'RECHAZADO: ninguna fila actualizada (esperado por RLS)':
+     'ALERTA: UPDATE directo permitido; revisar políticas antes de avanzar'});
+});
+$('logout').onclick=()=>action(async()=>{
+ if(client)await client.auth.signOut();client=null;lastFamilyId=null;$('password').value='';report('Sesión cerrada');
+});
+</script></body></html>
